@@ -330,3 +330,26 @@ type Contract struct {
 	ImpliedVolatility float64 `json:"impliedVolatility" csv:"impliedVolatility"`
 	InTheMoney        bool    `json:"inTheMoney" csv:"inTheMoney"`
 }
+
+type Events struct {
+	Dividends    []Dividend    `json:"dividends" csv:"dividends"`
+	CapitalGains []CapitalGain `json:"capitalGains" csv:"capitalGains"`
+	Splits       []Split       `json:"splits" csv:"splits"`
+}
+
+type Dividend struct {
+	Date   int     `json:"date" csv:"date"`
+	Amount float64 `json:"amount" csv:"amount"`
+}
+
+type CapitalGain struct {
+	Date   int     `json:"date" csv:"date"`
+	Amount float64 `json:"amount" csv:"amount"`
+}
+
+type Split struct {
+	Date        int     `json:"date" csv:"date"`
+	Numerator   float64 `json:"numerator" csv:"numerator"`
+	Denominator float64 `json:"denominator" csv:"denominator"`
+	Ratio       string  `json:"splitRatio" csv:"splitRatio"`
+}

@@ -23,19 +23,21 @@ func getC() Client {
 type Params struct {
 	// Context access.
 	finance.Params `form:"-"`
-
 	// Accessible fields.
-	Symbol   string             `form:"-"`
-	Start    *datetime.Datetime `form:"-"`
-	End      *datetime.Datetime `form:"-"`
-	Interval datetime.Interval  `form:"-"`
+	Symbol    string             `form:"-"`
+	Start     *datetime.Datetime `form:"-"`
+	End       *datetime.Datetime `form:"-"`
+	Interval  datetime.Interval  `form:"-"`
+	DateRange datetime.Interval  `form:"-"`
 
 	IncludeExt bool `form:"includePrePost"`
 
 	// Internal request fields.
-	interval string `form:"interval"`
-	start    int    `form:"period1"`
-	end      int    `form:"period2"`
+	interval  string `form:"interval"`
+	dateRange string `form:"range"`
+	start     int    `form:"period1"`
+	end       int    `form:"period2"`
+	events    string `form:"events"`
 }
 
 // Iter is a structure containing results
@@ -55,6 +57,17 @@ func (i *Iter) Bar() *finance.ChartBar {
 // related to a chart response.
 func (i *Iter) Meta() finance.ChartMeta {
 	return i.Iter.Meta().(finance.ChartMeta)
+}
+
+// Events returns the chart events
+// related to a chart response.
+func (i *Iter) Events() *finance.Events {
+	evts := i.Iter.Events()
+	if evts == nil {
+		return nil
+	}
+	events := i.Iter.Events().(finance.Events)
+	return &events
 }
 
 // Get returns a historical chart.
@@ -90,10 +103,16 @@ func (c Client) Get(params *Params) *Iter {
 	if params.start > params.end {
 		return &Iter{iter.NewE(finance.CreateChartTimeError())}
 	}
+	params.events = "div|split|capitalGains"
 
 	// Parse interval.
 	if params.Interval != "" {
 		params.interval = string(params.Interval)
+	}
+
+	// Parse range.
+	if params.DateRange != "" {
+		params.dateRange = string(params.DateRange)
 	}
 
 	// Build request.
@@ -103,7 +122,7 @@ func (c Client) Get(params *Params) *Iter {
 	body.Set("region", "US")
 	body.Set("corsDomain", "com.finance.yahoo")
 
-	return &Iter{iter.New(body, func(b *form.Values) (m interface{}, bars []interface{}, err error) {
+	return &Iter{iter.New(body, func(b *form.Values) (m interface{}, bars []interface{}, events interface{}, err error) {
 
 		resp := response{}
 		err = c.B.Call("v8/finance/chart/"+params.Symbol, body, params.Context, &resp)
@@ -149,7 +168,21 @@ func (c Client) Get(params *Params) *Iter {
 			bars = append(bars, b)
 		}
 
-		return result.Meta, bars, nil
+		// Process event response
+		if result.Events != nil {
+			evts := finance.Events{}
+			for _, div := range result.Events.Dividends {
+				evts.Dividends = append(evts.Dividends, div)
+			}
+			for _, split := range result.Events.Splits {
+				evts.Splits = append(evts.Splits, split)
+			}
+			for _, capGain := range result.Events.CapitalGains {
+				evts.CapitalGains = append(evts.CapitalGains, capGain)
+			}
+			events = evts
+		}
+		return result.Meta, bars, events, nil
 	})}
 }
 
@@ -177,4 +210,9 @@ type result struct {
 			Adjclose []float64 `json:"adjclose"`
 		} `json:"adjclose"`
 	} `json:"indicators"`
+	Events *struct {
+		Splits       map[int]finance.Split       `json:"split"`
+		Dividends    map[int]finance.Dividend    `json:"dividends"`
+		CapitalGains map[int]finance.CapitalGain `json:"capitalGains"`
+	} `json:"events"`
 }

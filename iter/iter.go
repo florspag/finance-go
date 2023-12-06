@@ -5,7 +5,7 @@ import (
 )
 
 // Query is the function used to get a response listing.
-type Query = func(*form.Values) (interface{}, []interface{}, error)
+type Query = func(*form.Values) (interface{}, []interface{}, interface{}, error)
 
 // Iter provides a convenient interface
 // for iterating over the elements
@@ -17,6 +17,7 @@ type Query = func(*form.Values) (interface{}, []interface{}, error)
 type Iter struct {
 	meta   interface{}
 	cur    interface{}
+	events interface{}
 	err    error
 	values []interface{}
 }
@@ -37,7 +38,7 @@ func New(qs *form.Values, query Query) *Iter {
 		q = &form.Values{}
 	}
 
-	iter.meta, iter.values, iter.err = query(q)
+	iter.meta, iter.values, iter.events, iter.err = query(q)
 	return iter
 }
 
@@ -71,6 +72,12 @@ func (it *Iter) Current() interface{} {
 // associated with the query.
 func (it *Iter) Meta() interface{} {
 	return it.meta
+}
+
+// Events returns the the events data
+// associated with the query.
+func (it *Iter) Events() interface{} {
+	return it.events
 }
 
 // Err returns the error, if any,
